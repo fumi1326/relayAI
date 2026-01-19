@@ -164,7 +164,7 @@ void multiply_float2D(int THREAD, int LANE, float2D *C, const float2D *A, int tr
 	    for (k=0; k<ka; k++) {
 	      int in = uTH(A->data[row*ka+k]); /*    0,+1 */
 	      int wt = sTH(B->data[k*n+col]);  /* -1,0,+1 */
-			int result = IN * wt;
+			int result = in * wt;
 	      if (result == 0) continue;
 	      printf("row=%d/%d col=%d/%d k=%d/%d:", row, m, col, n, k, ka);
 	    /* 1クロックで送信 */
