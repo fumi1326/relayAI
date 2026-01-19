@@ -162,36 +162,25 @@ void multiply_float2D(int THREAD, int LANE, float2D *C, const float2D *A, int tr
 	  }
 	  if (relay_mode) {
 	    for (k=0; k<ka; k++) {
-	      static int nextA;
-	      static int lastA;
 	      int in = uTH(A->data[row*ka+k]); /*    0,+1 */
 	      int wt = sTH(B->data[k*n+col]);  /* -1,0,+1 */
-	      if (in == 0 || wt == 0) continue;
+			int result = IN * wt;
+	      if (result == 0) continue;
 	      printf("row=%d/%d col=%d/%d k=%d/%d:", row, m, col, n, k, ka);
-	      for (l=0; l<RELAYBITS; l++) { /* 8bit */
-		if      (l  == 0) nextA = 1;
-		else if (wt >  0) nextA = 0; /* 1000000000 (+1) */
-		else              nextA = 1; /* 1111111111 (-1) */
-		/* generate A */
-		printf("%d", nextA);
-		if      (lastA == 1 && nextA == 0) relay_req("GET /30000/00\n"); /* A(and)-off */
-		else if (lastA == 0 && nextA == 1) relay_req("GET /30000/01\n"); /* A(and)-on  */
-		/* generate cin-mask (0:ignore 1:pass) */
-		if      (l  == 0) relay_req("GET /30000/02\n"); /* M(and)-ignore */
-		else if (l  == 1) relay_req("GET /30000/03\n"); /* M(and)-pass */
-		/* generate double-rate clk */
-		if   (!(l & 1)) { /* even */
-		  relay_req("GET /30000/13\n"); /* B(even-clk) (up-up->up/dn) */
-		  relay_req("GET /30000/15\n"); /* B(even-clk) (up-up->up/dn) */
-		}
-		else {            /* odd  */
-		  relay_req("GET /30000/12\n"); /* B(odd--clk) (dn-dn->up/dn) */
-		  relay_req("GET /30000/14\n"); /* B(odd--clk) (dn-dn->up/dn) */
-		}
-		lastA = nextA;
-	      }
-	      printf("\n");
-	    }
+	    /* 1クロックで送信 */
+          if (result > 0) {
+            /* +1の場合: A信号ON */
+            relay_req("GET /30000/01\n"); /* A(and)-on */
+            relay_req("GET /30000/03\n"); /* M(and)-pass */
+            relay_req("GET /30000/13\n"); /* clock pulse */
+          }
+          else {
+            /* -1の場合: A信号ON (全ビット1の状態を維持) */
+            relay_req("GET /30000/01\n"); /* A(and)-on */
+            relay_req("GET /30000/03\n"); /* M(and)-pass */
+            relay_req("GET /30000/13\n"); /* clock pulse */
+          }
+        }
 	    printf("Result should be %02.2x. Reset relay-board and type any key\n\n", (int)C->data[row*n+col] & 0xff);
 	    fgets(buf, 1024, stdin);
 	  }
